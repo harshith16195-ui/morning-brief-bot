@@ -111,13 +111,11 @@ def main():
 
     send_script = os.path.join(SCRIPT_DIR, "send_brief.py")
     result = subprocess.run(
-        [sys.executable, send_script],
-        capture_output=True, text=True
+        [sys.executable, send_script]
     )
     if result.returncode != 0:
-        print(f"Email send failed:\n{result.stderr}", file=sys.stderr)
+        print(f"Email send failed with exit code {result.returncode}", file=sys.stderr)
         sys.exit(1)
-    print(result.stdout.strip())
 
 
 if __name__ == "__main__":
