@@ -24,12 +24,20 @@ def send_brief(html_content: str) -> None:
 
     try:
         print(f"Connecting to Gmail SMTP...")
+        import socket
+        socket.setdefaulttimeout(30)
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(SENDER, APP_PASSWORD)
             server.sendmail(SENDER, RECIPIENT, msg.as_string())
         print(f"Email sent successfully: {subject}")
+    except smtplib.SMTPAuthenticationError as e:
+        print(f"ERROR: Gmail auth failed - wrong app password? {e}", file=sys.stderr)
+        sys.exit(1)
+    except socket.timeout as e:
+        print(f"ERROR: Connection timed out - Railway likely blocking port 465", file=sys.stderr)
+        sys.exit(1)
     except Exception as e:
-        print(f"ERROR sending email: {e}", file=sys.stderr)
+        print(f"ERROR sending email: {type(e).__name__}: {e}", file=sys.stderr)
         sys.exit(1)
 
 def main():
