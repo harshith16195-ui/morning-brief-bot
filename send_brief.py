@@ -1,42 +1,33 @@
 #!/usr/bin/env python3
-import smtplib
 import sys
 import os
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
 from datetime import datetime
 
 def send_brief(html_content: str) -> None:
+    SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY")
     SENDER = os.environ.get("EMAIL_SENDER")
-    APP_PASSWORD = os.environ.get("EMAIL_APP_PASSWORD")
     RECIPIENT = os.environ.get("EMAIL_RECIPIENT", SENDER)
 
-    if not SENDER or not APP_PASSWORD:
-        print(f"ERROR: Missing env vars. EMAIL_SENDER={SENDER}, EMAIL_APP_PASSWORD={'set' if APP_PASSWORD else 'MISSING'}", file=sys.stderr)
+    if not SENDGRID_API_KEY or not SENDER:
+        print(f"ERROR: Missing env vars. SENDGRID_API_KEY={'set' if SENDGRID_API_KEY else 'MISSING'}, EMAIL_SENDER={SENDER}", file=sys.stderr)
         sys.exit(1)
 
-    subject = f"🗞️ Morning Market Note | {datetime.now().strftime('%B %d, %Y')}"
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = SENDER
-    msg["To"] = RECIPIENT
-    msg.attach(MIMEText(html_content, "html"))
+    subject = f"Morning Market Note | {datetime.now().strftime('%B %d, %Y')}"
+
+    message = Mail(
+        from_email=SENDER,
+        to_emails=RECIPIENT,
+        subject=subject,
+        html_content=html_content
+    )
 
     try:
-        print(f"Connecting to Gmail SMTP...")
-        import socket
-        socket.setdefaulttimeout(30)
-        with smtplib.SMTP("smtp.gmail.com", 587) as server:
-            server.starttls()
-            server.login(SENDER, APP_PASSWORD)
-            server.sendmail(SENDER, RECIPIENT, msg.as_string())
-        print(f"Email sent successfully: {subject}")
-    except smtplib.SMTPAuthenticationError as e:
-        print(f"ERROR: Gmail auth failed - wrong app password? {e}", file=sys.stderr)
-        sys.exit(1)
-    except socket.timeout as e:
-        print(f"ERROR: Connection timed out - Railway likely blocking port 465", file=sys.stderr)
-        sys.exit(1)
+        print("Sending via SendGrid...")
+        sg = SendGridAPIClient(SENDGRID_API_KEY)
+        response = sg.send(message)
+        print(f"Email sent successfully! Status: {response.status_code}")
     except Exception as e:
         print(f"ERROR sending email: {type(e).__name__}: {e}", file=sys.stderr)
         sys.exit(1)
@@ -47,7 +38,7 @@ def main():
     else:
         brief_path = os.path.join(os.path.dirname(__file__), "brief_content.html")
         if not os.path.exists(brief_path):
-            print(f"Error: No argument provided and {brief_path} not found.", file=sys.stderr)
+            print(f"Error: {brief_path} not found.", file=sys.stderr)
             sys.exit(1)
         with open(brief_path, "r", encoding="utf-8") as f:
             html_content = f.read()
