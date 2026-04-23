@@ -26,7 +26,8 @@ def send_brief(html_content: str) -> None:
         print(f"Connecting to Gmail SMTP...")
         import socket
         socket.setdefaulttimeout(30)
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+            server.starttls()
             server.login(SENDER, APP_PASSWORD)
             server.sendmail(SENDER, RECIPIENT, msg.as_string())
         print(f"Email sent successfully: {subject}")
