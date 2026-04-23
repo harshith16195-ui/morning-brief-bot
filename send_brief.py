@@ -6,27 +6,31 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime
 
-SENDER = os.environ["EMAIL_SENDER"]
-APP_PASSWORD = os.environ["EMAIL_APP_PASSWORD"]
-RECIPIENT = os.environ.get("EMAIL_RECIPIENT", SENDER)
-
-
 def send_brief(html_content: str) -> None:
-    subject = f"🌅 Morning Market Note | {datetime.now().strftime('%B %d, %Y')}"
+    SENDER = os.environ.get("EMAIL_SENDER")
+    APP_PASSWORD = os.environ.get("EMAIL_APP_PASSWORD")
+    RECIPIENT = os.environ.get("EMAIL_RECIPIENT", SENDER)
 
+    if not SENDER or not APP_PASSWORD:
+        print(f"ERROR: Missing env vars. EMAIL_SENDER={SENDER}, EMAIL_APP_PASSWORD={'set' if APP_PASSWORD else 'MISSING'}", file=sys.stderr)
+        sys.exit(1)
+
+    subject = f"🗞️ Morning Market Note | {datetime.now().strftime('%B %d, %Y')}"
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = SENDER
     msg["To"] = RECIPIENT
-
     msg.attach(MIMEText(html_content, "html"))
 
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-        server.login(SENDER, APP_PASSWORD)
-        server.sendmail(SENDER, RECIPIENT, msg.as_string())
-
-    print(f"Email sent successfully: {subject}")
-
+    try:
+        print(f"Connecting to Gmail SMTP...")
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(SENDER, APP_PASSWORD)
+            server.sendmail(SENDER, RECIPIENT, msg.as_string())
+        print(f"Email sent successfully: {subject}")
+    except Exception as e:
+        print(f"ERROR sending email: {e}", file=sys.stderr)
+        sys.exit(1)
 
 def main():
     if len(sys.argv) > 1:
@@ -38,9 +42,7 @@ def main():
             sys.exit(1)
         with open(brief_path, "r", encoding="utf-8") as f:
             html_content = f.read()
-
     send_brief(html_content)
-
 
 if __name__ == "__main__":
     main()
